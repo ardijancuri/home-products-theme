@@ -9,11 +9,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ORIENTE_VERSION', '1.0.40' );
+define( 'ORIENTE_VERSION', '1.0.48' );
 define( 'ORIENTE_WHATSAPP_NUMBER', '38975222542' );
 
 require_once get_template_directory() . '/inc/customizer.php';
 require_once get_template_directory() . '/inc/demo-content.php';
+require_once get_template_directory() . '/inc/storefront-navigation.php';
 
 /** Configure theme defaults and WordPress features. */
 function oriente_setup() {
