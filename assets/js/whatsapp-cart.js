@@ -22,16 +22,22 @@
 
     if (!items.length || !number) return defaultValue;
 
-    const lines = [config.introduction || 'Здраво, сакам да направам нарачка:'];
+    const lineBreak = '\r\n';
+    const introduction = config.introduction || 'Здраво, сакам да направам нарачка:';
+    const sections = [`*${introduction}*`];
 
     items.forEach((item, index) => {
       const name = decodeText(item.name);
       const sku = decodeText(item.sku) || 'Не е достапна';
       const quantity = Number(item.quantity);
-      lines.push(`${index + 1}. Производ: ${name}\nШифра: ${sku}\nКоличина: ${quantity}`);
+      sections.push(
+        `*${index + 1}. Производ:* ${name}${lineBreak}`
+        + `*Шифра:* ${sku}${lineBreak}`
+        + `*Количина:* ${quantity}`,
+      );
     });
 
-    return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n\n'))}`;
+    return `https://wa.me/${number}?text=${encodeURIComponent(sections.join(lineBreak + lineBreak))}`;
   };
 
   checkout.registerCheckoutFilters('oriente-whatsapp-order', {

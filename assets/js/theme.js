@@ -3,13 +3,73 @@
   const header = document.querySelector('[data-site-header]');
   const searchOverlay = document.querySelector('[data-search-overlay]');
   const mobilePanel = document.querySelector('[data-mobile-panel]');
+  const cartDrawer = document.querySelector('[data-cart-drawer]');
   const searchOpen = document.querySelector('[data-search-open]');
   const mobileOpen = document.querySelector('[data-mobile-open]');
+  const mobileToggleLabel = mobileOpen?.querySelector('.mobile-toggle-label');
   let lastTrigger = null;
+  let cartLastTrigger = null;
+
+  const setMobileToggleLabel = (isOpen) => {
+    if (!mobileOpen) return;
+    const label = isOpen ? mobileOpen.dataset.closeLabel : mobileOpen.dataset.openLabel;
+    mobileOpen.setAttribute('aria-label', label);
+    if (mobileToggleLabel) mobileToggleLabel.textContent = label;
+  };
+
+  const syncMobilePanelPosition = () => {
+    if (!mobilePanel || !header) return;
+    const headerBottom = Math.max(0, Math.round(header.getBoundingClientRect().bottom));
+    mobilePanel.style.setProperty('--mobile-panel-top', `${headerBottom}px`);
+  };
+
+  const updateCartBadge = (count) => {
+    const cartLink = document.querySelector('.cart-action');
+    const badge = cartLink?.querySelector('.cart-count');
+    if (!cartLink || !badge) return;
+    const normalizedCount = Math.max(0, Math.round(Number(count) || 0));
+    const labelTemplate = normalizedCount === 1
+      ? cartLink.dataset.cartLabelSingular
+      : cartLink.dataset.cartLabelPlural;
+    badge.hidden = normalizedCount < 1;
+    badge.textContent = normalizedCount > 0 ? String(normalizedCount) : '';
+    if (labelTemplate) cartLink.setAttribute('aria-label', labelTemplate.replace('%d', normalizedCount));
+  };
+
+  const cartPage = document.querySelector('.wp-block-woocommerce-cart, .woocommerce-cart-form, .oriente-empty-cart');
+  if (cartPage) {
+    let cartSyncFrame = 0;
+    const syncCartBadgeFromPage = () => {
+      cartSyncFrame = 0;
+      if (cartPage.querySelector('.wc-block-cart__empty-cart__title, .oriente-empty-cart')) {
+        updateCartBadge(0);
+        return;
+      }
+      const quantityInputs = [...cartPage.querySelectorAll('.wc-block-components-quantity-selector__input, input.qty')];
+      if (!quantityInputs.length) return;
+      const cartCount = quantityInputs.reduce((total, input) => total + Math.max(0, Number(input.value) || 0), 0);
+      updateCartBadge(cartCount);
+    };
+    const queueCartBadgeSync = () => {
+      window.cancelAnimationFrame(cartSyncFrame);
+      cartSyncFrame = window.requestAnimationFrame(syncCartBadgeFromPage);
+    };
+    new MutationObserver(queueCartBadgeSync).observe(cartPage, {
+      attributes: true,
+      attributeFilter: ['value'],
+      childList: true,
+      subtree: true,
+    });
+    cartPage.addEventListener('input', queueCartBadgeSync);
+    cartPage.addEventListener('change', queueCartBadgeSync);
+    queueCartBadgeSync();
+  }
 
   const setLocked = () => {
     body.classList.toggle('is-locked', Boolean(
-      searchOverlay?.classList.contains('is-open') || mobilePanel?.classList.contains('is-open')
+      searchOverlay?.classList.contains('is-open')
+      || mobilePanel?.classList.contains('is-open')
+      || cartDrawer?.classList.contains('is-open')
     ));
   };
 
@@ -19,6 +79,7 @@
     panel.classList.add('is-open');
     panel.setAttribute('aria-hidden', 'false');
     trigger?.setAttribute('aria-expanded', 'true');
+    if (trigger === mobileOpen) setMobileToggleLabel(true);
     setLocked();
     window.setTimeout(() => panel.querySelector('input, button, a')?.focus(), 60);
   };
@@ -28,19 +89,114 @@
     panel.classList.remove('is-open');
     panel.setAttribute('aria-hidden', 'true');
     trigger?.setAttribute('aria-expanded', 'false');
+    if (trigger === mobileOpen) setMobileToggleLabel(false);
     setLocked();
     lastTrigger?.focus();
   };
 
+  const syncCartDrawerState = () => {
+    document.querySelector('.cart-action')?.setAttribute(
+      'aria-expanded',
+      cartDrawer?.classList.contains('is-open') ? 'true' : 'false'
+    );
+  };
+
+  const openCartDrawer = (trigger) => {
+    if (!cartDrawer) return;
+    if (searchOverlay?.classList.contains('is-open')) closePanel(searchOverlay, searchOpen);
+    if (mobilePanel?.classList.contains('is-open')) closePanel(mobilePanel, mobileOpen);
+    cartLastTrigger = trigger instanceof HTMLElement ? trigger : document.querySelector('.cart-action');
+    cartDrawer.classList.add('is-open');
+    cartDrawer.setAttribute('aria-hidden', 'false');
+    syncCartDrawerState();
+    setLocked();
+    window.setTimeout(() => cartDrawer.querySelector('[data-cart-close]')?.focus(), 60);
+  };
+
+  const closeCartDrawer = (restoreFocus = true) => {
+    if (!cartDrawer) return;
+    cartDrawer.classList.remove('is-open');
+    cartDrawer.setAttribute('aria-hidden', 'true');
+    syncCartDrawerState();
+    setLocked();
+    if (restoreFocus) cartLastTrigger?.focus();
+  };
+
+  const removeViewCartLinks = () => {
+    document.querySelectorAll('a.added_to_cart.wc-forward').forEach((link) => link.remove());
+  };
+
+  document.addEventListener('click', (event) => {
+    const cartOpen = event.target.closest('[data-cart-open]');
+    if (cartOpen) {
+      event.preventDefault();
+      openCartDrawer(cartOpen);
+      return;
+    }
+    if (event.target.closest('[data-cart-close]')) closeCartDrawer();
+  });
+
+  if (window.jQuery) {
+    const cartDrawerVersion = window.orienteTheme?.cartDrawerVersion;
+    if (cartDrawerVersion) {
+      let cachedDrawerVersion = '';
+      try {
+        cachedDrawerVersion = window.localStorage.getItem('orienteCartDrawerVersion') || '';
+        window.localStorage.setItem('orienteCartDrawerVersion', cartDrawerVersion);
+      } catch (error) {
+        cachedDrawerVersion = cartDrawerVersion;
+      }
+      if (cachedDrawerVersion !== cartDrawerVersion) {
+        window.jQuery(document.body).trigger('wc_fragment_refresh');
+      }
+    }
+
+    window.jQuery(document.body)
+      .on('added_to_cart', (event, fragments, cartHash, button) => {
+        removeViewCartLinks();
+        openCartDrawer(button?.get?.(0) || document.activeElement);
+        window.requestAnimationFrame(() => {
+          removeViewCartLinks();
+          syncCartDrawerState();
+        });
+        window.setTimeout(() => {
+          removeViewCartLinks();
+          syncCartDrawerState();
+        }, 180);
+      })
+      .on('removed_from_cart wc_fragments_refreshed', () => {
+        removeViewCartLinks();
+        syncCartDrawerState();
+      });
+  }
+
+  document.body.addEventListener('wc-blocks_added_to_cart', () => {
+    removeViewCartLinks();
+    openCartDrawer(document.activeElement);
+  });
+
+  removeViewCartLinks();
+  if (cartDrawer && 'MutationObserver' in window) {
+    new MutationObserver(() => {
+      removeViewCartLinks();
+      if (cartDrawer.classList.contains('is-open')) syncCartDrawerState();
+    }).observe(body, { childList: true, subtree: true });
+  }
+
   searchOpen?.addEventListener('click', () => openPanel(searchOverlay, searchOpen));
   document.querySelector('[data-search-close]')?.addEventListener('click', () => closePanel(searchOverlay, searchOpen));
-  mobileOpen?.addEventListener('click', () => openPanel(mobilePanel, mobileOpen));
-  document.querySelector('[data-mobile-close]')?.addEventListener('click', () => closePanel(mobilePanel, mobileOpen));
+  mobileOpen?.addEventListener('click', () => {
+    if (mobilePanel?.classList.contains('is-open')) {
+      closePanel(mobilePanel, mobileOpen);
+      return;
+    }
+    syncMobilePanelPosition();
+    openPanel(mobilePanel, mobileOpen);
+  });
   document.querySelector('[data-mobile-search]')?.addEventListener('click', () => {
     closePanel(mobilePanel, mobileOpen);
     openPanel(searchOverlay, searchOpen);
   });
-
   const megaMenus = [...document.querySelectorAll('[data-mega-menu]')];
   const closeMegaMenus = (exception = null) => {
     megaMenus.forEach((menu) => {
@@ -115,6 +271,7 @@
     openMegaToggle?.focus();
     if (searchOverlay?.classList.contains('is-open')) closePanel(searchOverlay, searchOpen);
     if (mobilePanel?.classList.contains('is-open')) closePanel(mobilePanel, mobileOpen);
+    if (cartDrawer?.classList.contains('is-open')) closeCartDrawer();
   });
 
   [searchOverlay, mobilePanel].forEach((panel) => {
@@ -125,9 +282,116 @@
     });
   });
 
-  const updateHeader = () => header?.classList.toggle('is-scrolled', window.scrollY > 20);
+  const updateHeader = () => {
+    header?.classList.toggle('is-scrolled', window.scrollY > 20);
+    if (mobilePanel?.classList.contains('is-open')) syncMobilePanelPosition();
+  };
   updateHeader();
   window.addEventListener('scroll', updateHeader, { passive: true });
+  window.addEventListener('resize', () => {
+    if (mobilePanel?.classList.contains('is-open')) syncMobilePanelPosition();
+  }, { passive: true });
+
+  const aboutParallaxImage = document.querySelector('[data-about-parallax]');
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (aboutParallaxImage && !prefersReducedMotion.matches) {
+    let aboutParallaxFrame = 0;
+    const updateAboutParallax = () => {
+      aboutParallaxFrame = 0;
+      const hero = aboutParallaxImage.closest('.about-hero');
+      if (!hero) return;
+      const bounds = hero.getBoundingClientRect();
+      if (bounds.bottom < 0 || bounds.top > window.innerHeight) return;
+      const distance = Math.min(26, Math.max(0, -bounds.top * 0.055));
+      aboutParallaxImage.style.setProperty('--about-parallax-y', `${distance}px`);
+    };
+    const queueAboutParallax = () => {
+      if (aboutParallaxFrame) return;
+      aboutParallaxFrame = window.requestAnimationFrame(updateAboutParallax);
+    };
+    window.addEventListener('scroll', queueAboutParallax, { passive: true });
+    window.addEventListener('resize', queueAboutParallax, { passive: true });
+    updateAboutParallax();
+  }
+
+  document.querySelectorAll('[data-home-hero-slider]').forEach((slider) => {
+    const slides = [...slider.querySelectorAll('[data-home-hero-slide]')];
+    const status = slider.querySelector('[data-home-hero-status]');
+    if (slides.length < 2) return;
+
+    let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains('is-active')));
+    let autoplayTimer = 0;
+
+    const setSlideFocusable = (slide, isActive) => {
+      slide.querySelectorAll('a, button, input, select, textarea, [tabindex]').forEach((element) => {
+        if (isActive) {
+          if (element.dataset.heroPreviousTabindex !== undefined) {
+            const previousTabindex = element.dataset.heroPreviousTabindex;
+            delete element.dataset.heroPreviousTabindex;
+            if (previousTabindex) element.setAttribute('tabindex', previousTabindex);
+            else element.removeAttribute('tabindex');
+          }
+          return;
+        }
+        if (element.dataset.heroPreviousTabindex === undefined) {
+          element.dataset.heroPreviousTabindex = element.getAttribute('tabindex') || '';
+        }
+        element.setAttribute('tabindex', '-1');
+      });
+    };
+
+    const showSlide = (requestedIndex) => {
+      activeIndex = (requestedIndex + slides.length) % slides.length;
+      slides.forEach((slide, index) => {
+        const isActive = index === activeIndex;
+        slide.classList.toggle('is-active', isActive);
+        slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        setSlideFocusable(slide, isActive);
+      });
+      if (status) {
+        const title = slides[activeIndex].dataset.slideTitle || '';
+        status.textContent = `Slide ${activeIndex + 1} of ${slides.length}${title ? `: ${title}` : ''}`;
+      }
+    };
+
+    const stopAutoplay = () => {
+      window.clearTimeout(autoplayTimer);
+      autoplayTimer = 0;
+    };
+
+    const startAutoplay = () => {
+      stopAutoplay();
+      if (prefersReducedMotion.matches || document.hidden) return;
+      autoplayTimer = window.setTimeout(() => {
+        showSlide(activeIndex + 1);
+        startAutoplay();
+      }, 5000);
+    };
+
+    slider.addEventListener('keydown', (event) => {
+      if ('ArrowLeft' !== event.key && 'ArrowRight' !== event.key) return;
+      event.preventDefault();
+      stopAutoplay();
+      showSlide(activeIndex + ('ArrowRight' === event.key ? 1 : -1));
+    });
+    slider.addEventListener('mouseenter', stopAutoplay);
+    slider.addEventListener('mouseleave', () => {
+      if (!slider.contains(document.activeElement)) startAutoplay();
+    });
+    slider.addEventListener('focusin', stopAutoplay);
+    slider.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!slider.contains(document.activeElement) && !slider.matches(':hover')) startAutoplay();
+      }, 0);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAutoplay();
+      else startAutoplay();
+    });
+
+    showSlide(activeIndex);
+    startAutoplay();
+  });
 
   const revealItems = document.querySelectorAll('[data-reveal]:not(.hero [data-reveal])');
   if ('IntersectionObserver' in window) {
@@ -168,10 +432,18 @@
     };
 
     const scrollOne = (direction) => {
-      const item = track.firstElementChild;
-      const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 0);
-      const distance = item ? item.getBoundingClientRect().width + gap : track.clientWidth * 0.8;
-      track.scrollBy({ left: direction * distance, behavior: 'smooth' });
+      const maximum = Math.max(0, track.scrollWidth - track.clientWidth);
+      const firstItem = track.firstElementChild;
+      if (!firstItem || maximum <= 0) return;
+      const origin = firstItem.offsetLeft;
+      const positions = [...track.children]
+        .map((item) => Math.min(maximum, Math.max(0, item.offsetLeft - origin)))
+        .filter((position, index, items) => index === 0 || Math.abs(position - items[index - 1]) > 2);
+      const current = Math.min(maximum, Math.max(0, track.scrollLeft));
+      const target = direction > 0
+        ? positions.find((position) => position > current + 2) ?? maximum
+        : [...positions].reverse().find((position) => position < current - 2) ?? 0;
+      track.scrollTo({ left: target, behavior: 'smooth' });
     };
 
     previous?.addEventListener('click', () => scrollOne(-1));

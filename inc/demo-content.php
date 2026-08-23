@@ -66,6 +66,90 @@ function oriente_import_demo_image( $filename, $title, $credit = '' ) {
 	return (int) $attachment_id;
 }
 
+/** Return bundled section, collection, story, and category images that should be reusable in Media Library. */
+function oriente_reusable_theme_image_files() {
+	$image_directory = get_template_directory() . '/assets/images';
+	$files           = glob( trailingslashit( $image_directory ) . '*' );
+	$reusable_files  = array();
+
+	if ( false === $files ) {
+		return $reusable_files;
+	}
+
+	foreach ( $files as $file ) {
+		$filename = wp_basename( $file );
+		if (
+			is_file( $file ) &&
+			preg_match( '/^(?:hero|collection|closing|follow-us|story|category-).+\.(?:avif|gif|jpe?g|png|webp)$/i', $filename )
+		) {
+			$reusable_files[] = $filename;
+		}
+	}
+
+	sort( $reusable_files, SORT_NATURAL | SORT_FLAG_CASE );
+	return $reusable_files;
+}
+
+/** Convert a bundled asset filename into a useful Media Library title. */
+function oriente_reusable_theme_image_title( $filename ) {
+	$title = pathinfo( $filename, PATHINFO_FILENAME );
+	$title = preg_replace( '/[-_]+/', ' ', $title );
+	$title = preg_replace( '/\s+/', ' ', $title );
+
+	return sprintf(
+		/* translators: %s: human-readable bundled image name. */
+		__( 'Oriente – %s', 'oriente' ),
+		ucwords( trim( $title ) )
+	);
+}
+
+/** Copy reusable bundled visuals into WordPress uploads so they appear in Media Library. */
+function oriente_sync_reusable_theme_images() {
+	if ( ! current_user_can( 'upload_files' ) ) {
+		return array();
+	}
+
+	$filenames = oriente_reusable_theme_image_files();
+	$signature = md5( wp_json_encode( $filenames ) );
+	if ( $signature === get_option( 'oriente_reusable_theme_images_signature' ) ) {
+		return array();
+	}
+
+	$attachment_ids = array();
+	$all_imported   = true;
+
+	foreach ( $filenames as $filename ) {
+		$attachment_id = oriente_import_demo_image(
+			$filename,
+			oriente_reusable_theme_image_title( $filename ),
+			__( 'Reusable Oriente section and collection artwork.', 'oriente' )
+		);
+
+		if ( $attachment_id ) {
+			$attachment_ids[] = $attachment_id;
+			update_post_meta( $attachment_id, '_oriente_reusable_theme_image', '1' );
+		} else {
+			$all_imported = false;
+		}
+	}
+
+	if ( $all_imported ) {
+		update_option( 'oriente_reusable_theme_images_signature', $signature, false );
+	}
+
+	return $attachment_ids;
+}
+
+/** Populate Media Library automatically for administrators without affecting public requests. */
+function oriente_maybe_sync_reusable_theme_images() {
+	if ( wp_doing_ajax() ) {
+		return;
+	}
+
+	oriente_sync_reusable_theme_images();
+}
+add_action( 'admin_init', 'oriente_maybe_sync_reusable_theme_images', 30 );
+
 /** Return or create one of the two permitted storefront categories. */
 function oriente_ensure_product_category( $name, $slug, $description ) {
 	$existing = get_term_by( 'slug', $slug, 'product_cat' );
@@ -142,7 +226,7 @@ function oriente_upsert_demo_page( $title, $slug, $content ) {
 
 /** Seed the current clean local install with an original two-category catalog. */
 function oriente_seed_demo_content() {
-	if ( get_option( 'oriente_demo_content_version' ) === ORIENTE_VERSION ) {
+	if ( get_option( 'oriente_demo_content_version' ) ) {
 		return;
 	}
 	if ( ! class_exists( 'WooCommerce' ) || ! class_exists( 'WC_Product_Simple' ) || ! taxonomy_exists( 'product_cat' ) ) {
@@ -152,12 +236,12 @@ function oriente_seed_demo_content() {
 	$kitchen_id = oriente_ensure_product_category(
 		__( 'Kitchen', 'oriente' ),
 		'kitchen',
-		__( 'Sculptural tableware, serveware, glassware and purposeful tools selected for daily use.', 'oriente' )
+		__( 'Tableware, glassware, serving pieces and kitchen tools for everyday use.', 'oriente' )
 	);
 	$decor_id = oriente_ensure_product_category(
 		__( 'Home Decoration', 'oriente' ),
 		'home-decoration',
-		__( 'Quiet vessels, candlelight, textiles and collectible objects that give a room its rhythm.', 'oriente' )
+		__( 'Vases, bowls, home fragrance and decorative objects for every room.', 'oriente' )
 	);
 
 	if ( ! $kitchen_id || ! $decor_id ) {
@@ -187,7 +271,7 @@ function oriente_seed_demo_content() {
 			'name' => 'Cupola Porcelain Tea Pot', 'sku' => 'ORI-KIT-004', 'price' => '240', 'weight' => '1.1', 'category' => $kitchen_id,
 			'image' => 'product-teapot-white.png', 'gallery' => array( 'hero-table.webp', 'linen-cups.webp' ), 'credit' => 'Original studio image created for Oriente.',
 			'short' => 'An architectural white porcelain pot with a calm, domed silhouette.',
-			'description' => '<p>Cupola balances a generous body with an unexpectedly precise spout. It brings a gallery-like presence to the familiar ritual of tea.</p><p><strong>Material:</strong> Glazed porcelain<br><strong>Capacity:</strong> 1.2 L<br><strong>Care:</strong> Hand wash</p>',
+			'description' => '<p>Cupola balances a generous body with a precise spout. Its clean shape makes serving tea simple and considered.</p><p><strong>Material:</strong> Glazed porcelain<br><strong>Capacity:</strong> 1.2 L<br><strong>Care:</strong> Hand wash</p>',
 		),
 		array(
 			'name' => 'Atelier Porcelain Serving Bowl', 'sku' => 'ORI-KIT-005', 'price' => '135', 'weight' => '0.9', 'category' => $kitchen_id,
@@ -241,11 +325,6 @@ function oriente_seed_demo_content() {
 		wp_delete_term( $uncategorized->term_id, 'product_cat' );
 	}
 
-	update_option( 'woocommerce_currency', 'EUR' );
-	update_option( 'woocommerce_currency_pos', 'right_space' );
-	update_option( 'blogname', 'Oriente' );
-	update_option( 'blogdescription', 'Inspired Living.' );
-
 	oriente_upsert_demo_page(
 		'Contact',
 		'contact',
@@ -256,6 +335,7 @@ function oriente_seed_demo_content() {
 		'privacy-policy',
 		'<h2>Your privacy</h2><p>This demonstration storefront collects only the information required to process an order or respond to an enquiry. Before launch, replace this page with the privacy, cookie, payment and retention terms that apply to your business and region.</p><h2>Store data</h2><p>WooCommerce may store account, cart and order information. Configure your production analytics, payment providers and email platform here before accepting live orders.</p>'
 	);
-	update_option( 'oriente_demo_content_version', ORIENTE_VERSION );
+	update_option( 'oriente_demo_content_version', 'installed' );
 }
-add_action( 'init', 'oriente_seed_demo_content', 40 );
+
+/* Demo content is intentionally opt-in and must never run during normal site requests. */
