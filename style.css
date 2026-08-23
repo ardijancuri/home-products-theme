@@ -3,7 +3,7 @@ Theme Name: Oriente
 Theme URI: https://oriente.local
 Author: Oriente
 Description: A quiet-luxury WooCommerce theme for collectible kitchenware and home decoration.
-Version: 1.0.217
+Version: 1.0.218
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 8.0
@@ -4060,4 +4060,126 @@ body.has-oriente-category-hero .product-category-hero__breadcrumb::after {
 body.woocommerce-shop.has-oriente-category-hero .woocommerce-page-shell,
 body.tax-product_cat.has-oriente-category-hero .woocommerce-page-shell {
   padding-top: 0;
+}
+
+/* 1.0.218 homepage ordering FAQ. */
+.home-faq {
+  padding: var(--ori-section-space) var(--ori-gutter);
+  border-bottom: 1px solid var(--ori-line);
+  background: var(--ori-cream);
+}
+
+.home-faq__inner {
+  display: grid;
+  grid-template-columns: minmax(240px,.65fr) minmax(0,1.35fr);
+  gap: clamp(3.5rem,8vw,9rem);
+  align-items: start;
+  width: min(var(--ori-container),100%);
+  margin: 0 auto;
+}
+
+.home-faq__intro h2 {
+  max-width: 10ch;
+  margin: 0;
+  font: 400 clamp(2.5rem,4vw,4.2rem)/1.02 var(--ori-serif);
+  letter-spacing: -.035em;
+}
+
+.home-faq__intro p {
+  max-width: 38ch;
+  margin: 1.5rem 0 0;
+  color: var(--ori-soft);
+}
+
+.home-faq__list {
+  border-top: 1px solid var(--ori-line);
+}
+
+.home-faq__item {
+  border-bottom: 1px solid var(--ori-line);
+}
+
+.home-faq__item summary {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 28px;
+  gap: 1.5rem;
+  align-items: center;
+  padding: clamp(1.5rem,2.4vw,2.15rem) 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.home-faq__item summary::-webkit-details-marker {
+  display: none;
+}
+
+.home-faq__item summary > span:first-child {
+  font: 400 clamp(1.2rem,1.75vw,1.55rem)/1.3 var(--ori-serif);
+  letter-spacing: -.02em;
+}
+
+.home-faq__item summary:focus-visible {
+  outline: 1px solid var(--ori-ink);
+  outline-offset: 8px;
+}
+
+.home-faq__toggle {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 20px;
+  justify-self: end;
+}
+
+.home-faq__toggle::before,
+.home-faq__toggle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 1px;
+  background: currentColor;
+  content: "";
+  transform: translate(-50%,-50%);
+  transition: transform 220ms var(--ori-ease);
+}
+
+.home-faq__toggle::after {
+  transform: translate(-50%,-50%) rotate(90deg);
+}
+
+.home-faq__item[open] .home-faq__toggle::after {
+  transform: translate(-50%,-50%) rotate(0deg);
+}
+
+.home-faq__answer {
+  max-width: 62ch;
+  padding: 0 3.25rem clamp(1.75rem,2.5vw,2.35rem) 0;
+}
+
+.home-faq__answer p {
+  margin: 0;
+  color: var(--ori-soft);
+}
+
+@media (max-width:782px) {
+  .home-faq__inner {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .home-faq__intro h2 {
+    font-size: clamp(2.55rem,10.5vw,3.1rem);
+  }
+
+  .home-faq__item summary {
+    gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .home-faq__toggle::before,
+  .home-faq__toggle::after {
+    transition: none;
+  }
 }

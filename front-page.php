@@ -142,6 +142,30 @@ $closing_title        = $home_mod( 'oriente_closing_title' );
 $closing_text         = $home_mod( 'oriente_closing_text' );
 $closing_link_label   = $home_mod( 'oriente_closing_link_label' );
 $closing_link_url     = $home_mod( 'oriente_closing_link_url' );
+
+$faq_whatsapp_url = oriente_whatsapp_support_url();
+$faq_items        = array(
+	array(
+		'question' => __( 'How does the online store work?', 'oriente' ),
+		'answer'   => __( 'Browse our products and categories, open an item to see its details, then add the pieces you want to your bag. The bag prepares your order for WhatsApp instead of taking payment online.', 'oriente' ),
+	),
+	array(
+		'question' => __( 'How do I place an order through WhatsApp?', 'oriente' ),
+		'answer'   => __( 'Open your bag and select “Order via WhatsApp.” A ready-made message with your chosen products and quantities will open in WhatsApp. Review it, add any note you would like us to see, and send it to our team.', 'oriente' ),
+	),
+	array(
+		'question' => __( 'What happens after I send my order?', 'oriente' ),
+		'answer'   => __( 'Our team checks availability, confirms the quantities and order total, and replies in the same WhatsApp conversation. Your order is only finalized after those details are confirmed with you.', 'oriente' ),
+	),
+	array(
+		'question' => __( 'How do I pay for my order?', 'oriente' ),
+		'answer'   => __( 'Payment is arranged with our team after your order is confirmed. We will explain the available option for your order before you approve it.', 'oriente' ),
+	),
+	array(
+		'question' => __( 'How are delivery and timing arranged?', 'oriente' ),
+		'answer'   => __( 'Share your location or delivery address in WhatsApp. Our team will confirm the delivery details and expected timing with you before the order is finalized.', 'oriente' ),
+	),
+);
 ?>
 
 <main id="primary" class="site-main">
@@ -395,6 +419,32 @@ $closing_link_url     = $home_mod( 'oriente_closing_link_url' );
 					<figure class="story-slide" aria-label="<?php echo esc_attr( sprintf( __( 'Story image %1$d of %2$d', 'oriente' ), $story_image_index + 1, count( $story_images ) ) ); ?>">
 						<img src="<?php echo esc_url( $story_image ); ?>" alt="<?php echo esc_attr( sprintf( __( '%1$s, image %2$d', 'oriente' ), $story_title, $story_image_index + 1 ) ); ?>" loading="lazy">
 					</figure>
+				<?php endforeach; ?>
+			</div>
+		</div>
+	</section>
+
+	<section class="home-faq" aria-labelledby="home-faq-title">
+		<div class="home-faq__inner">
+			<header class="home-faq__intro" data-reveal>
+				<h2 id="home-faq-title"><?php esc_html_e( 'Questions, answered.', 'oriente' ); ?></h2>
+				<p><?php esc_html_e( 'Browse at your own pace, then complete your order in a direct WhatsApp conversation with our team.', 'oriente' ); ?></p>
+				<?php if ( $faq_whatsapp_url ) : ?>
+					<a class="text-link text-link--no-icon" href="<?php echo esc_url( $faq_whatsapp_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Ask us on WhatsApp', 'oriente' ); ?></a>
+				<?php endif; ?>
+			</header>
+
+			<div class="home-faq__list" data-reveal>
+				<?php foreach ( $faq_items as $faq_item ) : ?>
+					<details class="home-faq__item">
+						<summary>
+							<span><?php echo esc_html( $faq_item['question'] ); ?></span>
+							<span class="home-faq__toggle" aria-hidden="true"></span>
+						</summary>
+						<div class="home-faq__answer">
+							<p><?php echo esc_html( $faq_item['answer'] ); ?></p>
+						</div>
+					</details>
 				<?php endforeach; ?>
 			</div>
 		</div>

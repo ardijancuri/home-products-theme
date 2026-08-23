@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ORIENTE_VERSION', '1.0.217' );
+define( 'ORIENTE_VERSION', '1.0.218' );
 define( 'ORIENTE_WHATSAPP_NUMBER', '38975222542' );
 define( 'ORIENTE_CONTACT_EMAIL', 'info@oriente.mk' );
 define( 'ORIENTE_CONTACT_ADDRESS', 'Metodija Andonov Cento broj 3 Madzari, Skopje, North Macedonia' );
