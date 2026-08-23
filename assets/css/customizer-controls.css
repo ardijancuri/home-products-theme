@@ -1,0 +1,33 @@
+.oriente-product-selector {
+	max-height: 300px;
+	margin: 10px 0 0;
+	overflow-y: auto;
+	border: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.oriente-product-selector li {
+	margin: 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.oriente-product-selector li:last-child {
+	border-bottom: 0;
+}
+
+.oriente-product-selector label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 9px 10px;
+	line-height: 1.35;
+}
+
+.oriente-product-selector label:hover {
+	background: #f6f7f7;
+}
+
+.oriente-product-selector input {
+	flex: 0 0 auto;
+	margin-top: 1px;
+}

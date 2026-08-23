@@ -1,0 +1,16 @@
+.oriente-category-hero-control {
+  width: min(100%, 620px);
+}
+
+.oriente-category-hero-preview {
+  display: block;
+  width: min(100%, 520px);
+  aspect-ratio: 16 / 9;
+  margin: 0 0 12px;
+  border: 1px solid #c3c4c7;
+  background: #f0f0f1;
+  object-fit: cover;
+}
+
+.oriente-category-hero-preview[hidden] { display: none; }
+.oriente-category-hero-actions { display: flex; align-items: center; gap: 12px; }
